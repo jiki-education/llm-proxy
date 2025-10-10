@@ -8,7 +8,11 @@
     "start": "node dist/index.js",
     "dev": "tsx src/index.ts",
     "build": "tsc && node scripts/bundle.js",
-    "format": "prettier --write ."
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "echo \"Error: no tests yet\" && exit 1"
   },
   "keywords": [
     "llm",
@@ -28,8 +32,12 @@
     "yaml": "^2.7.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.37.0",
     "@types/node": "^24.7.1",
+    "@typescript-eslint/eslint-plugin": "^8.46.0",
+    "@typescript-eslint/parser": "^8.46.0",
     "esbuild": "^0.25.10",
+    "eslint": "^9.37.0",
     "husky": "^9.1.7",
     "lint-staged": "^15.2.11",
     "prettier": "^3.4.2",
