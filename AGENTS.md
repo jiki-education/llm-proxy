@@ -92,6 +92,7 @@ For detailed architectural documentation, see `.context/architecture.md`.
 - Callback sent to Rails SPI endpoint when complete or on error
 
 **Key Implementation Details:**
+
 - Uses `streamHandle` from `hono/aws-lambda` to keep Lambda alive after response
 - Chunks stream to Redis pub/sub in real-time for frontend consumption
 - Lambda waits for all async work to complete before terminating
@@ -120,10 +121,12 @@ All configuration is managed via environment variables:
 - **Lambda Production**: Set environment variables in Lambda configuration
 
 **Required Variables:**
+
 - `GOOGLE_API_KEY` - Gemini API key
 - `RAILS_SPI_BASE_URL` - Base URL for Rails SPI callbacks
 
 **Optional Variables:**
+
 - `REDIS_URL` - Redis connection string (defaults to `redis://127.0.0.1:6379/1`)
 - `PORT` - Server port for local development (defaults to 3064)
 
@@ -143,13 +146,13 @@ This service is designed to run on AWS Lambda with **response streaming** enable
 
 ```typescript
 // CDK/Terraform/SAM example
-new lambda.FunctionUrl(this, 'LLMProxyUrl', {
+new lambda.FunctionUrl(this, "LLMProxyUrl", {
   function: llmProxyFunction,
-  invokeMode: lambda.InvokeMode.RESPONSE_STREAM,  // ⚠️ CRITICAL
+  invokeMode: lambda.InvokeMode.RESPONSE_STREAM, // ⚠️ CRITICAL
   cors: {
-    allowedOrigins: ['*'],
-    allowedMethods: ['POST'],
-    allowedHeaders: ['Content-Type']
+    allowedOrigins: ["*"],
+    allowedMethods: ["POST"],
+    allowedHeaders: ["Content-Type"]
   }
 });
 ```
@@ -159,17 +162,19 @@ new lambda.FunctionUrl(this, 'LLMProxyUrl', {
 ### Lambda Function Configuration
 
 ```typescript
-llmProxyFunction.addTimeout(Duration.minutes(15));  // Max Lambda timeout
-llmProxyFunction.addMemorySize(1024);  // Sufficient for SDK + Redis
+llmProxyFunction.addTimeout(Duration.minutes(15)); // Max Lambda timeout
+llmProxyFunction.addMemorySize(1024); // Sufficient for SDK + Redis
 ```
 
 ### Environment Variables (Lambda)
 
 **Required:**
+
 - `GOOGLE_API_KEY` - Gemini API key
 - `RAILS_SPI_BASE_URL` - Base URL for Rails SPI callbacks (e.g., `https://api.jiki.io/spi/`)
 
 **Optional:**
+
 - `REDIS_URL` - Redis connection string (defaults to `redis://127.0.0.1:6379/1`)
 - `PORT` - Server port for local development only (defaults to 3064)
 
@@ -178,11 +183,13 @@ llmProxyFunction.addMemorySize(1024);  // Sufficient for SDK + Redis
 The service automatically detects its environment:
 
 **Local Development:**
+
 - Starts HTTP server on port 3064
 - Reads configuration from `.env` file
 - Full streaming and Redis support
 
 **Lambda Production:**
+
 - Exports `handler` function using `streamHandle`
 - Skips server startup (no HTTP listener)
 - Uses Lambda environment variables

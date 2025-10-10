@@ -42,6 +42,7 @@ The Jiki LLM Proxy is a TypeScript/Hono service designed for AWS Lambda that imp
 ```
 
 **Key Points:**
+
 - Rails gets immediate 202 response and is **completely free** to handle other requests
 - Lambda continues execution after returning response (via `streamHandle`)
 - Chunks stream to Redis in real-time for frontend consumption
@@ -55,26 +56,27 @@ We use Google Gemini's **standard streaming API** (`ai.models.generateContentStr
 
 #### Cost Comparison (Gemini 2.5 Flash)
 
-| API Type | Input Cost | Output Cost | Use Case |
-|----------|-----------|-------------|----------|
+| API Type                                 | Input Cost         | Output Cost        | Use Case                      |
+| ---------------------------------------- | ------------------ | ------------------ | ----------------------------- |
 | **Standard API** (generateContentStream) | **$0.30**/M tokens | **$2.50**/M tokens | Text generation, translations |
-| **Live API** (live.connect) | $0.50/M tokens | $2.00/M tokens | Voice/video conversations |
+| **Live API** (live.connect)              | $0.50/M tokens     | $2.00/M tokens     | Voice/video conversations     |
 
 **Example Cost** (1000 token prompt → 3000 token response):
+
 - Standard API: **$0.0078 per request** ✅
 - Live API: $0.0065 per request (but adds WebSocket complexity)
 
 #### Technical Comparison
 
-| Factor | generateContentStream | live.connect | Winner |
-|--------|----------------------|--------------|--------|
-| **Protocol** | HTTP/REST streaming | WebSocket (stateful) | **generateContentStream** |
-| **Direction** | One-way (server → client) | Bidirectional | **generateContentStream** |
-| **Lambda Fit** | Request-response | Persistent connection | **generateContentStream** |
-| **Complexity** | Simple async iteration | Session management, callbacks | **generateContentStream** |
-| **Latency** | ~500ms to first chunk | <100ms to first chunk | live.connect |
-| **Modalities** | Text, images | Text, audio, video | (depends on use case) |
-| **Interruptions** | No | Yes | (not needed) |
+| Factor            | generateContentStream     | live.connect                  | Winner                    |
+| ----------------- | ------------------------- | ----------------------------- | ------------------------- |
+| **Protocol**      | HTTP/REST streaming       | WebSocket (stateful)          | **generateContentStream** |
+| **Direction**     | One-way (server → client) | Bidirectional                 | **generateContentStream** |
+| **Lambda Fit**    | Request-response          | Persistent connection         | **generateContentStream** |
+| **Complexity**    | Simple async iteration    | Session management, callbacks | **generateContentStream** |
+| **Latency**       | ~500ms to first chunk     | <100ms to first chunk         | live.connect              |
+| **Modalities**    | Text, images              | Text, audio, video            | (depends on use case)     |
+| **Interruptions** | No                        | Yes                           | (not needed)              |
 
 **Verdict:** For **text-only, one-way streaming** (our use case), `generateContentStream` is simpler, more cost-effective for input, and better suited to Lambda's request-response model.
 
@@ -83,18 +85,21 @@ We use Google Gemini's **standard streaming API** (`ai.models.generateContentStr
 Standard Lambda functions freeze execution after returning a response. To support fire-and-forget, we use **Lambda Response Streaming** via Hono's `streamHandle` adapter.
 
 **Without `streamHandle`:**
+
 ```typescript
-export const handler = handle(app);  // ❌ Lambda freezes after 202
+export const handler = handle(app); // ❌ Lambda freezes after 202
 // Background async work may be lost!
 ```
 
 **With `streamHandle`:**
+
 ```typescript
-export const handler = streamHandle(app);  // ✅ Lambda waits for async work
+export const handler = streamHandle(app); // ✅ Lambda waits for async work
 // Background processing completes reliably
 ```
 
 **How it works:**
+
 1. Lambda returns 202 response immediately
 2. Lambda execution context stays alive
 3. Async IIFE continues running
@@ -109,13 +114,13 @@ This is AWS's recommended pattern for "running code after returning a response" 
 
 ```typescript
 // CDK/Terraform/SAM
-new lambda.FunctionUrl(this, 'LLMProxyUrl', {
+new lambda.FunctionUrl(this, "LLMProxyUrl", {
   function: llmProxyFunction,
-  invokeMode: lambda.InvokeMode.RESPONSE_STREAM,  // ⚠️ CRITICAL
+  invokeMode: lambda.InvokeMode.RESPONSE_STREAM, // ⚠️ CRITICAL
   cors: {
-    allowedOrigins: ['*'],
-    allowedMethods: ['POST'],
-    allowedHeaders: ['Content-Type']
+    allowedOrigins: ["*"],
+    allowedMethods: ["POST"],
+    allowedHeaders: ["Content-Type"]
   }
 });
 ```
@@ -125,25 +130,26 @@ new lambda.FunctionUrl(this, 'LLMProxyUrl', {
 ### Function Configuration
 
 ```typescript
-llmProxyFunction.addTimeout(Duration.minutes(15));  // Max Lambda timeout
-llmProxyFunction.addMemorySize(1024);  // Sufficient for SDK + Redis
+llmProxyFunction.addTimeout(Duration.minutes(15)); // Max Lambda timeout
+llmProxyFunction.addMemorySize(1024); // Sufficient for SDK + Redis
 llmProxyFunction.addEnvironment({
   GOOGLE_API_KEY: secrets.geminiApiKey,
-  REDIS_URL: 'redis://your-redis-url:6379/1',
-  RAILS_SPI_BASE_URL: 'https://your-rails-api.com/spi/'
+  REDIS_URL: "redis://your-redis-url:6379/1",
+  RAILS_SPI_BASE_URL: "https://your-rails-api.com/spi/"
 });
 ```
 
 ### Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `GOOGLE_API_KEY` | ✅ Yes | - | Gemini API key |
-| `RAILS_SPI_BASE_URL` | ✅ Yes | `http://localhost:3000/spi/` | Rails callback base URL |
-| `REDIS_URL` | No | `redis://127.0.0.1:6379/1` | Redis for streaming |
-| `PORT` | No | `3064` | Server port (local dev only) |
+| Variable             | Required | Default                      | Description                  |
+| -------------------- | -------- | ---------------------------- | ---------------------------- |
+| `GOOGLE_API_KEY`     | ✅ Yes   | -                            | Gemini API key               |
+| `RAILS_SPI_BASE_URL` | ✅ Yes   | `http://localhost:3000/spi/` | Rails callback base URL      |
+| `REDIS_URL`          | No       | `redis://127.0.0.1:6379/1`   | Redis for streaming          |
+| `PORT`               | No       | `3064`                       | Server port (local dev only) |
 
 **Configuration is managed via:**
+
 - **Local Development**: `.env` file (copy from `.env.example`)
 - **Lambda Production**: Lambda environment variables
 
@@ -184,6 +190,7 @@ catch (error) {
 ## Local Development vs Production
 
 ### Local Development
+
 ```bash
 # Uses Node.js HTTP server
 pnpm dev
@@ -191,6 +198,7 @@ pnpm dev
 ```
 
 The code detects non-Lambda environment and starts a traditional HTTP server:
+
 ```typescript
 if (!process.env.AWS_EXECUTION_ENV && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
   serve({ fetch: app.fetch, port: PORT });
@@ -198,6 +206,7 @@ if (!process.env.AWS_EXECUTION_ENV && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
 ```
 
 ### Lambda Production
+
 ```bash
 # Build for Lambda
 pnpm build
@@ -207,6 +216,7 @@ sam deploy --guided
 ```
 
 Lambda uses the exported `handler`:
+
 ```typescript
 export const handler = streamHandle(app);
 ```
@@ -217,16 +227,22 @@ export const handler = streamHandle(app);
 
 ```typescript
 // During streaming
-redis.publish(stream_channel, JSON.stringify({
-  text: "chunk of response text",
-  done: false
-}));
+redis.publish(
+  stream_channel,
+  JSON.stringify({
+    text: "chunk of response text",
+    done: false
+  })
+);
 
 // Final message
-redis.publish(stream_channel, JSON.stringify({
-  text: null,
-  done: true
-}));
+redis.publish(
+  stream_channel,
+  JSON.stringify({
+    text: null,
+    done: true
+  })
+);
 ```
 
 ### Frontend Integration
@@ -238,7 +254,7 @@ Frontend subscribes to the Redis channel and displays chunks in real-time:
 const redis = new Redis(REDIS_URL);
 redis.subscribe(stream_channel);
 
-redis.on('message', (channel, message) => {
+redis.on("message", (channel, message) => {
   const { text, done } = JSON.parse(message);
   if (text) displayChunk(text);
   if (done) finishLoading();
@@ -250,6 +266,7 @@ redis.on('message', (channel, message) => {
 ### Option 1: SQS Queue + Worker Lambda
 
 **Pattern:**
+
 ```
 Rails → API Lambda → SQS → Worker Lambda → Gemini
                               ↓
@@ -257,11 +274,13 @@ Rails → API Lambda → SQS → Worker Lambda → Gemini
 ```
 
 **Pros:**
+
 - API returns in ~10ms (just queuing)
 - Better separation of concerns
 - Natural retry mechanism via SQS
 
 **Cons:**
+
 - More infrastructure complexity
 - Higher cost (Lambda + SQS + DLQ)
 - Two Lambda functions to maintain
@@ -271,16 +290,19 @@ Rails → API Lambda → SQS → Worker Lambda → Gemini
 ### Option 2: Await Completion (Exercism Pattern)
 
 **Pattern:**
+
 ```typescript
 res.status(202).json({ status: 'accepted' });
 await handleGeminiPrompt(...);  // Block until complete
 ```
 
 **Pros:**
+
 - Simpler (no fire-and-forget)
 - Guaranteed completion
 
 **Cons:**
+
 - Client connection stays open for 30+ seconds
 - Higher Lambda cost (blocking execution time)
 - Poor UX (client waits)
@@ -290,11 +312,13 @@ await handleGeminiPrompt(...);  // Block until complete
 ## Monitoring and Observability
 
 ### Current State
+
 - Console logging only
 - No structured logs
 - No metrics/tracing
 
 ### Recommended Production Additions
+
 1. **Structured Logging**: Use Winston/Pino with JSON format
 2. **Distributed Tracing**: AWS X-Ray integration
 3. **Metrics**: CloudWatch custom metrics (request count, duration, errors)
@@ -304,18 +328,21 @@ await handleGeminiPrompt(...);  // Block until complete
 ## Performance Characteristics
 
 ### Latency
+
 - Rails receives 202: **~50ms**
 - First Redis chunk: **~2 seconds** (includes Gemini cold start)
 - Subsequent chunks: **~500ms intervals**
 - Final callback: **~30 seconds** (for typical translation)
 
 ### Costs (per request)
+
 - Lambda execution: ~$0.0001 (30s at 1024MB)
 - Gemini API: ~$0.0078 (1K input, 3K output)
 - Redis: Negligible (pub/sub)
 - **Total: ~$0.008 per request**
 
 ### Limits
+
 - Lambda timeout: 15 minutes max
 - Gemini context: 1M tokens (Gemini 1.5)
 - Redis message size: 512MB max
@@ -323,11 +350,13 @@ await handleGeminiPrompt(...);  // Block until complete
 ## Security Considerations
 
 ### Current State
+
 - `spi_endpoint` is user-controlled (potential SSRF)
 - No request authentication
 - No rate limiting
 
 ### Recommended Production Additions
+
 1. **Validate callback URLs**: Whitelist allowed SPI endpoints
 2. **Add request signing**: HMAC signature verification
 3. **Implement rate limiting**: Per-client request throttling
