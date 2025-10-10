@@ -17,7 +17,9 @@
       "Bash(ln:*)",
       "Bash(pnpm format:*)",
       "Bash(pnpm typecheck:*)",
-      "Bash(pnpm lint:*)"
+      "Bash(pnpm lint:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(pnpm remove:*)"
     ],
     "deny": [],
     "ask": []

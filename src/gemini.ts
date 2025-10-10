@@ -1,10 +1,10 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import Redis from "ioredis";
 import fetch from "node-fetch";
 import { GOOGLE_API_KEY, REDIS_URL, RAILS_SPI_BASE_URL } from "./config.js";
 import { RateLimitException, InvalidRequestException, type ModelMap } from "./types.js";
 
-// Initialize Redis client for streaming (future use)
+// Initialize Redis client for streaming
 let redisClient: Redis | null = null;
 try {
   redisClient = new Redis(REDIS_URL);
@@ -16,7 +16,7 @@ try {
 }
 
 // Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
+const ai = new GoogleGenAI({ apiKey: GOOGLE_API_KEY });
 
 // Model mapping
 const MODEL_MAP: ModelMap = {
@@ -42,20 +42,28 @@ export async function handleGeminiPrompt(
   try {
     // Get the appropriate model
     const modelId = MODEL_MAP[modelName] || MODEL_MAP.flash;
-    const model = genAI.getGenerativeModel({ model: modelId });
 
     console.log(`Starting Gemini request with model: ${modelId}`);
     console.log(`Callback endpoint: ${spiEndpoint}`);
     console.log(`Prompt length: ${prompt.length} characters`);
 
     // Generate content with streaming
-    const result = await model.generateContentStream(prompt);
+    const stream = await ai.models.generateContentStream({
+      model: modelId,
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        thinkingConfig: {
+          thinkingBudget: 0
+        }
+      }
+    });
 
     let fullResponse = "";
 
     // Process stream chunks
-    for await (const chunk of result.stream) {
-      const chunkText = chunk.text();
+    for await (const chunk of stream) {
+      const chunkText = chunk.text;
       fullResponse += chunkText;
 
       // Publish to Redis stream for real-time updates
@@ -116,29 +124,29 @@ export async function handleGeminiPrompt(
     console.log(`Callback successful (${response.status})`);
 
     return { success: true, response: fullResponse };
-  } catch (error) {
-    console.error("Gemini prompt handling error:", error);
+  } catch (err: unknown) {
+    const error = err as { code?: number; message?: string };
+    const errorMessage = error.message ?? "";
 
-    const errorMessage = (error as Error).message;
-
-    // Handle rate limiting
-    if (errorMessage && errorMessage.includes("429")) {
-      const retryAfter = 60; // Default to 60 seconds
-      throw new RateLimitException("Rate limit exceeded", retryAfter);
+    if (error.code === 400) {
+      console.log("Bad request:", errorMessage);
+      throw new InvalidRequestException("Bad request: " + errorMessage);
+    } else if (error.code === 403) {
+      console.log("Access forbidden:", errorMessage);
+      throw new InvalidRequestException("Access forbidden: " + errorMessage);
+    } else if (error.code === 404) {
+      console.log("Model not found:", errorMessage);
+      throw new InvalidRequestException("Model not found: " + errorMessage);
+    } else if (error.code === 429) {
+      console.warn("Rate limit exceeded. Retrying in 1 second...");
+      throw new RateLimitException("Rate limit exceeded", null);
+    } else if (errorMessage.includes("SAFETY")) {
+      console.log("Safety settings triggered");
+      throw new InvalidRequestException("Safety settings triggered");
+    } else {
+      console.error("Unexpected error:", err);
+      throw new InvalidRequestException("Unexpected error: " + (errorMessage || "Unknown error"));
     }
-
-    // Handle safety/blocked content
-    if (errorMessage && (errorMessage.includes("SAFETY") || errorMessage.includes("blocked"))) {
-      throw new InvalidRequestException("Content was blocked by safety filters");
-    }
-
-    // Handle invalid requests
-    if (errorMessage && errorMessage.includes("400")) {
-      throw new InvalidRequestException(`Invalid request: ${errorMessage}`);
-    }
-
-    // Re-throw other errors
-    throw error;
   }
 }
 
