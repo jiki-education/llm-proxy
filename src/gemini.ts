@@ -61,7 +61,13 @@ export async function handleGeminiPrompt(
       // Publish to Redis stream for real-time updates
       if (redisClient !== null && streamChannel !== undefined && streamChannel !== "") {
         try {
-          await redisClient.xadd(streamChannel, "*", "chunk", chunkText);
+          await redisClient.publish(
+            streamChannel,
+            JSON.stringify({
+              text: chunkText,
+              done: false
+            })
+          );
         } catch (error) {
           console.warn("Redis stream publish failed:", (error as Error).message);
         }
@@ -69,6 +75,21 @@ export async function handleGeminiPrompt(
     }
 
     console.log(`Gemini response received: ${fullResponse.length} characters`);
+
+    // Publish final message with done flag
+    if (redisClient !== null && streamChannel !== undefined && streamChannel !== "") {
+      try {
+        await redisClient.publish(
+          streamChannel,
+          JSON.stringify({
+            text: null,
+            done: true
+          })
+        );
+      } catch (error) {
+        console.warn("Redis stream publish failed:", (error as Error).message);
+      }
+    }
 
     // Send callback to Rails SPI endpoint
     const callbackUrl = `${RAILS_SPI_BASE_URL}${spiEndpoint}`;
