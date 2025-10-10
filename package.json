@@ -1,0 +1,42 @@
+{
+  "name": "jiki-llm-proxy",
+  "version": "1.0.0",
+  "description": "LLM proxy service for Jiki AI-powered translations",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts",
+    "build": "tsc && node scripts/bundle.js",
+    "format": "prettier --write ."
+  },
+  "keywords": [
+    "llm",
+    "proxy",
+    "gemini",
+    "translation",
+    "ai"
+  ],
+  "author": "Jiki Education",
+  "license": "MIT",
+  "dependencies": {
+    "@google/generative-ai": "^0.21.0",
+    "@hono/node-server": "^1.19.5",
+    "dotenv": "^17.2.3",
+    "hono": "^4.9.10",
+    "node-fetch": "^3.3.2",
+    "yaml": "^2.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.1",
+    "esbuild": "^0.25.10",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.11",
+    "prettier": "^3.4.2",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "lint-staged": {
+    "*.{ts,js,json,md}": "prettier --write"
+  }
+}

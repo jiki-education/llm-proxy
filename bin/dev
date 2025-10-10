@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+
+set -e
+
+# Change to the script's directory
+cd "$(dirname "$0")/.."
+
+echo "================================="
+echo "Starting Jiki LLM Proxy"
+echo "================================="
+echo ""
+
+# Check if Node.js is installed
+if ! command -v node &> /dev/null; then
+  echo "Error: Node.js is not installed"
+  echo "Please install Node.js 18+ to continue"
+  exit 1
+fi
+
+# Check if pnpm is installed
+if ! command -v pnpm &> /dev/null; then
+  echo "Error: pnpm is not installed"
+  echo "Please install pnpm to continue"
+  exit 1
+fi
+
+# Install dependencies
+echo "Installing dependencies..."
+pnpm install --frozen-lockfile
+
+echo ""
+echo "================================="
+echo "Starting server..."
+echo "================================="
+echo ""
+
+# Start the server with tsx (TypeScript execution)
+pnpm dev

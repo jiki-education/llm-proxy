@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "WebSearch",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(pnpm import:*)",
+      "Bash(pnpm tsc:*)",
+      "Read(//Users/iHiD/Code/exercism/llm-proxy/**)",
+      "Bash(pnpm add:*)",
+      "Bash(pnpm dev:*)",
+      "Bash(curl:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
