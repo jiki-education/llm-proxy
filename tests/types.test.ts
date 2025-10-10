@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { RateLimitException, InvalidRequestException } from "../types.js";
+import { RateLimitException, InvalidRequestException } from "../src/types.js";
 
 describe("Custom Exception Types", () => {
   describe("RateLimitException", () => {
