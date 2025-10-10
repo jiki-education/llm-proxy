@@ -21,6 +21,9 @@ function loadConfigFromYaml(): Record<string, unknown> {
 
 const config = loadConfigFromYaml();
 
+// Redis URL for streaming (future use)
+export const REDIS_URL = process.env.REDIS_URL ?? "redis://127.0.0.1:6379/1";
+
 // Rails SPI base URL loaded from config gem settings
 export const RAILS_SPI_BASE_URL = (config.spi_base_url as string) || "http://localhost:3000/spi/";
 

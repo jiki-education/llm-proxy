@@ -1,7 +1,19 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import Redis from "ioredis";
 import fetch from "node-fetch";
-import { GOOGLE_API_KEY, RAILS_SPI_BASE_URL } from "./config.js";
+import { GOOGLE_API_KEY, REDIS_URL, RAILS_SPI_BASE_URL } from "./config.js";
 import { RateLimitException, InvalidRequestException, type ModelMap } from "./types.js";
+
+// Initialize Redis client for streaming (future use)
+let redisClient: Redis | null = null;
+try {
+  redisClient = new Redis(REDIS_URL);
+  redisClient.on("error", (err) => {
+    console.warn("Redis connection error:", err.message);
+  });
+} catch (error) {
+  console.warn("Could not initialize Redis client:", (error as Error).message);
+}
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(GOOGLE_API_KEY);
@@ -46,10 +58,14 @@ export async function handleGeminiPrompt(
       const chunkText = chunk.text();
       fullResponse += chunkText;
 
-      // Future: Publish to Redis stream for real-time updates
-      // if (redisClient && streamChannel) {
-      //   await redisClient.xadd(streamChannel, '*', 'chunk', chunkText);
-      // }
+      // Publish to Redis stream for real-time updates
+      if (redisClient !== null && streamChannel !== undefined && streamChannel !== "") {
+        try {
+          await redisClient.xadd(streamChannel, "*", "chunk", chunkText);
+        } catch (error) {
+          console.warn("Redis stream publish failed:", (error as Error).message);
+        }
+      }
     }
 
     console.log(`Gemini response received: ${fullResponse.length} characters`);
@@ -104,3 +120,11 @@ export async function handleGeminiPrompt(
     throw error;
   }
 }
+
+// Cleanup Redis connection on process exit
+process.on("SIGINT", () => {
+  if (redisClient) {
+    void redisClient.quit();
+  }
+  process.exit(0);
+});
