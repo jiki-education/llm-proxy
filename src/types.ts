@@ -45,7 +45,7 @@ export class RateLimitException extends Error {
 
   constructor(message: string, retryAfter: number | null = null) {
     super(message);
-    this.name = 'RateLimitException';
+    this.name = "RateLimitException";
     this.retryAfter = retryAfter;
   }
 }
@@ -53,12 +53,12 @@ export class RateLimitException extends Error {
 export class InvalidRequestException extends Error {
   constructor(message: string) {
     super(message);
-    this.name = 'InvalidRequestException';
+    this.name = "InvalidRequestException";
   }
 }
 
 // Model Types
-export type ModelName = 'flash' | 'pro';
+export type ModelName = "flash" | "pro";
 
 export interface ModelMap {
   [key: string]: string;

@@ -5,6 +5,7 @@ A Node.js proxy service for AI-powered translations using Google Gemini. This se
 ## Overview
 
 The LLM proxy provides a fire-and-forget interface for LLM operations running on port 3064:
+
 1. Rails API sends a request to `/exec`
 2. Proxy returns 202 Accepted immediately
 3. Proxy calls Gemini API asynchronously
@@ -83,6 +84,7 @@ Configuration is loaded from multiple sources:
 Execute an LLM request.
 
 **Request Body:**
+
 ```json
 {
   "service": "gemini",
@@ -95,6 +97,7 @@ Execute an LLM request.
 ```
 
 **Parameters:**
+
 - `service` (required): Service name - currently only "gemini" is supported
 - `model` (required): Model name - "flash" (gemini-1.5-flash) or "pro" (gemini-1.5-pro)
 - `spi_endpoint` (required): Rails SPI endpoint for callback (e.g., "llm/email_translation")
@@ -103,6 +106,7 @@ Execute an LLM request.
 - Additional parameters are passed through to the callback
 
 **Response:**
+
 ```json
 {
   "status": "accepted",
@@ -117,6 +121,7 @@ Execute an LLM request.
 Health check endpoint.
 
 **Response:**
+
 ```json
 {
   "status": "ok",
@@ -129,6 +134,7 @@ Health check endpoint.
 When processing completes, the proxy sends a POST request to `${spi_base_url}${spi_endpoint}`:
 
 **Success Callback:**
+
 ```json
 {
   "resp": "Full LLM response text",
@@ -139,6 +145,7 @@ When processing completes, the proxy sends a POST request to `${spi_base_url}${s
 **Error Callbacks:**
 
 Rate Limited (`/llm/rate_limited`):
+
 ```json
 {
   "error": "Rate limit exceeded",
@@ -148,6 +155,7 @@ Rate Limited (`/llm/rate_limited`):
 ```
 
 Error (`/llm/errored`):
+
 ```json
 {
   "error": "Error message",
@@ -241,6 +249,7 @@ For production deployment:
 ### "GOOGLE_API_KEY environment variable is required"
 
 Set your Gemini API key:
+
 ```bash
 export GOOGLE_API_KEY="your-key-here"
 ```

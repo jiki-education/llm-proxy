@@ -3,4 +3,4 @@ dist/
 *.log
 .env
 .DS_Store
-pnpm-lock.yaml
+.claude/settings.local.json

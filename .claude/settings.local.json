@@ -10,7 +10,16 @@
       "Read(//Users/iHiD/Code/exercism/llm-proxy/**)",
       "Bash(pnpm add:*)",
       "Bash(pnpm dev:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Read(//Users/iHiD/Code/jiki/**)",
+      "Read(//Users/iHiD/Code/**)",
+      "Bash(find:*)",
+      "Bash(ln:*)",
+      "Bash(pnpm format:*)",
+      "Bash(pnpm typecheck:*)",
+      "Bash(pnpm lint:*)",
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(pnpm remove:*)"
     ],
     "deny": [],
     "ask": []
