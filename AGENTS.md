@@ -81,23 +81,51 @@ This ensures proper code review, maintains git history, and follows professional
 
 ## Architecture Notes
 
-### Fire-and-Forget Pattern
+For detailed architectural documentation, see `.context/architecture.md`.
 
-- POST to `/exec` returns 202 Accepted immediately
-- Request is processed asynchronously
+### Fire-and-Forget Pattern with Lambda Response Streaming
+
+- POST to `/exec` returns 202 Accepted immediately (~50ms)
+- Rails can continue processing other requests immediately
+- Lambda continues executing async work after returning response
+- Request is processed asynchronously with real-time Redis streaming
 - Callback sent to Rails SPI endpoint when complete or on error
+
+**Key Implementation Details:**
+- Uses `streamHandle` from `hono/aws-lambda` to keep Lambda alive after response
+- Chunks stream to Redis pub/sub in real-time for frontend consumption
+- Lambda waits for all async work to complete before terminating
+- Works both locally (Node server) and on Lambda (response streaming)
+
+### Streaming Architecture
+
+1. **Rails → Lambda**: POST request with prompt and parameters
+2. **Lambda → Rails**: Immediate 202 Accepted response
+3. **Lambda → Gemini**: Stream API call with `generateContentStream`
+4. **Gemini → Redis**: Real-time chunk publishing via Redis pub/sub
+5. **Lambda → Rails**: Final callback with complete response
 
 ### Error Handling
 
 - Rate limiting (429) → `/llm/rate_limited` callback
-- Safety filters/blocked content → `/llm/errored` callback
+- Invalid requests (400/403/404) → `/llm/errored` callback
+- Safety filters (SAFETY) → `/llm/errored` callback
 - Other errors → `/llm/errored` callback
 
 ### Configuration
 
-- Environment variables via `.env` (local) or Lambda env vars (production)
-- Rails SPI base URL loaded from `../config/settings/local.yml`
-- Gemini API key from `GOOGLE_API_KEY` env var
+All configuration is managed via environment variables:
+
+- **Local Development**: Use `.env` file (copy from `.env.example`)
+- **Lambda Production**: Set environment variables in Lambda configuration
+
+**Required Variables:**
+- `GOOGLE_API_KEY` - Gemini API key
+- `RAILS_SPI_BASE_URL` - Base URL for Rails SPI callbacks
+
+**Optional Variables:**
+- `REDIS_URL` - Redis connection string (defaults to `redis://127.0.0.1:6379/1`)
+- `PORT` - Server port for local development (defaults to 3064)
 
 ### Type Safety
 
@@ -107,18 +135,77 @@ This ensures proper code review, maintains git history, and follows professional
 
 ## Deployment
 
-This service is designed to run on AWS Lambda. The Hono framework provides native Lambda support with zero configuration needed.
+This service is designed to run on AWS Lambda with **response streaming** enabled.
+
+### Critical Lambda Configuration
+
+**⚠️ REQUIRED:** Lambda Function URL must be configured with `RESPONSE_STREAM` invoke mode:
+
+```typescript
+// CDK/Terraform/SAM example
+new lambda.FunctionUrl(this, 'LLMProxyUrl', {
+  function: llmProxyFunction,
+  invokeMode: lambda.InvokeMode.RESPONSE_STREAM,  // ⚠️ CRITICAL
+  cors: {
+    allowedOrigins: ['*'],
+    allowedMethods: ['POST'],
+    allowedHeaders: ['Content-Type']
+  }
+});
+```
+
+**Why this is required:** The `streamHandle` adapter keeps Lambda execution alive after returning the 202 response, allowing async work to complete. Without `RESPONSE_STREAM` mode, Lambda will freeze execution and background work will be lost.
+
+### Lambda Function Configuration
+
+```typescript
+llmProxyFunction.addTimeout(Duration.minutes(15));  // Max Lambda timeout
+llmProxyFunction.addMemorySize(1024);  // Sufficient for SDK + Redis
+```
 
 ### Environment Variables (Lambda)
 
+**Required:**
 - `GOOGLE_API_KEY` - Gemini API key
-- `PORT` - Server port (optional, defaults to 3064)
+- `RAILS_SPI_BASE_URL` - Base URL for Rails SPI callbacks (e.g., `https://api.jiki.io/spi/`)
+
+**Optional:**
+- `REDIS_URL` - Redis connection string (defaults to `redis://127.0.0.1:6379/1`)
+- `PORT` - Server port for local development only (defaults to 3064)
+
+### Local vs Lambda Behavior
+
+The service automatically detects its environment:
+
+**Local Development:**
+- Starts HTTP server on port 3064
+- Reads configuration from `.env` file
+- Full streaming and Redis support
+
+**Lambda Production:**
+- Exports `handler` function using `streamHandle`
+- Skips server startup (no HTTP listener)
+- Uses Lambda environment variables
+
+### Build and Deploy
+
+```bash
+# Build for production
+pnpm build
+
+# Deploy with AWS SAM (example)
+sam build
+sam deploy --guided
+
+# Or with CDK/Terraform/etc.
+```
 
 ## Future Enhancements
 
 - Add test suite (unit + integration tests)
-- Real-time streaming via Redis/WebSockets
+- ~~Real-time streaming via Redis/WebSockets~~ ✅ Implemented
 - Support for additional LLM providers (OpenAI, Claude, etc.)
 - Request queuing and rate limiting
 - Retry logic with exponential backoff
-- Metrics and monitoring
+- Metrics and monitoring (CloudWatch, X-Ray)
+- Dead letter queue for failed callbacks

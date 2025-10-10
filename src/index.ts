@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
+import { streamHandle } from "hono/aws-lambda";
 import { handleGeminiPrompt } from "./gemini.js";
 import { validateConfig, PORT, RAILS_SPI_BASE_URL } from "./config.js";
 import { RateLimitException, InvalidRequestException, type ExecRequest } from "./types.js";
@@ -111,21 +112,27 @@ async function callErrorHandler(handler: string, payload: Record<string, unknown
   }
 }
 
-// Start server
-console.log(`\n=================================`);
-console.log(`Jiki LLM Proxy Server`);
-console.log(`=================================`);
-console.log(`Server running on port ${PORT}`);
-console.log(`Callback base URL: ${RAILS_SPI_BASE_URL}`);
-console.log(`=================================\n`);
+// Export Lambda handler with streaming support
+// This allows Lambda to keep execution alive after returning 202 response
+export const handler = streamHandle(app);
 
-serve({
-  fetch: app.fetch,
-  port: PORT
-});
+// Start server only in non-Lambda environments (local development)
+if (!process.env.AWS_EXECUTION_ENV && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  console.log(`\n=================================`);
+  console.log(`Jiki LLM Proxy Server`);
+  console.log(`=================================`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(`Callback base URL: ${RAILS_SPI_BASE_URL}`);
+  console.log(`=================================\n`);
 
-// Graceful shutdown
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down gracefully...");
-  process.exit(0);
-});
+  serve({
+    fetch: app.fetch,
+    port: PORT
+  });
+
+  // Graceful shutdown
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, shutting down gracefully...");
+    process.exit(0);
+  });
+}
