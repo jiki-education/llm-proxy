@@ -117,7 +117,10 @@ async function callErrorHandler(handler: string, payload: Record<string, unknown
 export const handler = streamHandle(app);
 
 // Start server only in non-Lambda environments (local development)
-if (!process.env.AWS_EXECUTION_ENV && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+if (
+  (process.env.AWS_EXECUTION_ENV === undefined || process.env.AWS_EXECUTION_ENV === "") &&
+  (process.env.AWS_LAMBDA_FUNCTION_NAME === undefined || process.env.AWS_LAMBDA_FUNCTION_NAME === "")
+) {
   console.log(`\n=================================`);
   console.log(`Jiki LLM Proxy Server`);
   console.log(`=================================`);
